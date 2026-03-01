@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Bot, RefreshCw, Settings, Quote, BookOpen, MoreHorizontal, ArrowRight, Lightbulb, Play, Pause, SkipBack, SkipForward, Volume2, Maximize2, Tag, MessageSquare, Database } from 'lucide-react';
+import { FileText, Bot, RefreshCw, Settings, Quote, BookOpen, MoreHorizontal, ArrowRight, Lightbulb, Play, Pause, SkipBack, SkipForward, Volume2, Maximize2, Tag, MessageSquare, Database, AlertCircle, Loader2 } from 'lucide-react';
 
 interface InsightViewProps {
   onNavigate: (view: string) => void;
@@ -10,6 +10,62 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
   const [insights, setInsights] = useState<any[]>([]);
   const [transcripts, setTranscripts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // New state for AI Analysis MVP workflow
+  const [rawText, setRawText] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [persona, setPersona] = useState<{ name: string, role: string } | null>(null);
+
+  const handleAnalyze = async () => {
+    if (!rawText.trim()) {
+      setAnalysisError('请先输入访谈记录');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: rawText, projectId }),
+      });
+
+      let result;
+      try {
+        result = await response.json();
+      } catch (e) {
+        // Fallback if response is completely unparseable (e.g. 502 Bad Gateway HTML)
+        throw new Error(`服务器响应格式异常 (状态码: ${response.status})`);
+      }
+
+      if (!response.ok) {
+        // Handle specific API errors gracefully (like 402 Insufficient Balance)
+        if (response.status === 402) {
+          throw new Error('分析失败：API 余额不足，请检查 DeepSeek 账户余额');
+        }
+        throw new Error(result.error || `请求失败 (状态码: ${response.status})`);
+      }
+
+      if (result.success && result.data) {
+        setInsights(result.data.insights || []);
+        if (result.data.persona) {
+          setPersona(result.data.persona);
+        }
+      } else {
+        throw new Error('解析结构体失败或格式异常');
+      }
+    } catch (err: any) {
+      console.error('AI Analysis failed:', err);
+      setAnalysisError(err.message || '网络请求失败或解析出错，请重试');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   useEffect(() => {
     // Fetch insights and transcripts concurrently
@@ -37,8 +93,20 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
   }
 
   return (
-    <div className="flex h-full overflow-hidden bg-slate-50">
-      {/* Left Panel: Transcript & Media */}
+    <div className="flex h-full overflow-hidden bg-slate-50 relative">
+      {/* Toast Notification */}
+      {analysisError && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 z-[60] animate-in fade-in slide-in-from-top-4 max-w-md w-full">
+          <AlertCircle size={20} className="text-red-500 shrink-0" />
+          <div className="flex-1 pr-4">
+            <h4 className="font-bold text-sm">分析异常</h4>
+            <p className="text-[13px] mt-0.5 leading-snug">{analysisError}</p>
+          </div>
+          <button onClick={() => setAnalysisError(null)} className="absolute top-3 right-3 text-red-400 hover:text-red-700 transition-colors p-1 rounded-md hover:bg-red-100">×</button>
+        </div>
+      )}
+
+      {/* Left Panel: Transcript & Media input */}
       <div className="w-full md:w-1/2 flex flex-col border-r border-slate-200 bg-white shadow-sm z-10">
         {/* Header */}
         <div className="p-4 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
@@ -64,69 +132,42 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
           </div>
         </div>
 
-        {/* Media Player Placeholder */}
-        <div className="p-4 border-b border-slate-200 bg-slate-900 text-white shrink-0 flex flex-col gap-3">
-          <div className="relative w-full h-32 bg-slate-800 rounded-lg overflow-hidden border border-slate-700 flex items-center justify-center group">
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent"></div>
-            <div className="flex items-center gap-4 z-10">
-              <div className="w-12 h-12 rounded-full bg-slate-700 border-2 border-slate-600 overflow-hidden">
-                <img src="https://picsum.photos/seed/interviewer/100/100" alt="Interviewer" className="w-full h-full object-cover opacity-50" referrerPolicy="no-referrer" />
-              </div>
-              <div className="w-16 h-16 rounded-full bg-blue-600 border-2 border-blue-400 overflow-hidden shadow-lg shadow-blue-900/50">
-                <img src="https://picsum.photos/seed/avatar1/200/200" alt="Participant" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-              </div>
-            </div>
-            <div className="absolute bottom-2 left-3 flex items-center gap-2 text-xs font-mono text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-              00:14:22 / 00:45:00
-            </div>
+        {/* Data Input Area */}
+        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-slate-50/50">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-1.5 h-4 bg-blue-500 rounded-full"></div>
+            <label className="text-sm font-bold text-slate-800">原始数据输入区</label>
           </div>
+          <p className="text-[13px] text-slate-500 mb-1 leading-relaxed">
+            将单次访谈、工单记录或用户反馈直接粘贴在此处。UX-Insight AI 分析核心将依据大模型能力（DeepSeek），自动提取结构化洞察并保存至 Supabase 数据库。
+          </p>
+          <textarea
+            className="flex-1 w-full p-4 rounded-xl border border-slate-200 shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none transition-all text-slate-700 leading-relaxed min-h-[400px]"
+            placeholder="示例：&#10;您好，张睿，感谢今天参加。作为一名资深 UX 设计师，你认为目前使用的研究工具中最大的痛点是什么？&#10;&#10;说实话，最让我头疼的是整理素材的效率。每次访谈结束后，面对几个小时的视频素材，我经常感到无从下手..."
+            value={rawText}
+            onChange={(e) => setRawText(e.target.value)}
+            disabled={isAnalyzing}
+          ></textarea>
 
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-4">
-              <button className="text-slate-400 hover:text-white transition-colors"><SkipBack size={18} /></button>
-              <button className="w-8 h-8 rounded-full bg-white text-slate-900 flex items-center justify-center hover:scale-105 transition-transform"><Play size={16} className="ml-0.5" /></button>
-              <button className="text-slate-400 hover:text-white transition-colors"><SkipForward size={18} /></button>
-            </div>
-            <div className="flex-1 mx-6">
-              <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden cursor-pointer relative">
-                <div className="absolute top-0 left-0 h-full bg-blue-500 w-1/3"></div>
-                {/* Highlight markers on timeline */}
-                <div className="absolute top-0 left-[15%] h-full w-1 bg-yellow-400"></div>
-                <div className="absolute top-0 left-[28%] h-full w-1 bg-red-400"></div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-slate-400">
-              <button className="hover:text-white transition-colors"><Volume2 size={18} /></button>
-              <button className="hover:text-white transition-colors"><Maximize2 size={16} /></button>
-            </div>
+          <div className="pt-2">
+            <button
+              onClick={handleAnalyze}
+              disabled={isAnalyzing || !rawText.trim()}
+              className="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2 text-[15px] active:scale-[0.99]"
+            >
+              {isAnalyzing ? (
+                <>
+                  <Loader2 className="animate-spin" size={20} />
+                  核心大脑深度分析中 (这可能需要几秒钟)...
+                </>
+              ) : (
+                <>
+                  <Bot size={20} />
+                  提交并开始洞察
+                </>
+              )}
+            </button>
           </div>
-        </div>
-
-        {/* Transcript */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-white">
-          <div className="flex items-center gap-4">
-            <div className="h-px bg-slate-100 flex-1"></div>
-            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider bg-slate-50 px-2 py-1 rounded">00:00 - 访谈开场与背景介绍</span>
-            <div className="h-px bg-slate-100 flex-1"></div>
-          </div>
-
-          {transcripts.map((transcript, index) => (
-            <div key={transcript.id || index} className="flex gap-4 group">
-              <div className="flex flex-col items-center gap-2 min-w-[48px]">
-                <div className={`w-10 h-10 rounded-full ${transcript.speaker === '访谈员 (你)' ? 'bg-slate-100 border-slate-200' : 'bg-blue-50 border-blue-100 shadow-sm'} border overflow-hidden`}>
-                  <img src={transcript.speaker === '访谈员 (你)' ? "https://picsum.photos/seed/interviewer/100/100" : "https://picsum.photos/seed/avatar1/200/200"} alt={transcript.speaker} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                </div>
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className={`text-sm font-semibold ${transcript.speaker === '访谈员 (你)' ? 'text-slate-900' : 'text-blue-700'}`}>{transcript.speaker}</span>
-                  <span className="text-xs text-slate-400 font-mono">{transcript.timeGroup}</span>
-                </div>
-                <p className="text-slate-700 text-[15px] leading-relaxed">{transcript.text}</p>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -162,50 +203,25 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
                   用户画像提取
                 </h3>
               </div>
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 hover:border-blue-200 transition-colors">
-                <div className="flex flex-col sm:flex-row gap-5">
-                  <div className="flex flex-col items-center sm:items-start gap-3 sm:w-1/3 sm:border-r border-slate-100 sm:pr-5">
-                    <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-slate-100">
-                      <img src="https://picsum.photos/seed/avatar1/200/200" alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:border-blue-200 transition-colors">
+                {persona ? (
+                  <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
+                    <div className="w-16 h-16 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-2xl overflow-hidden shadow-inner border border-blue-100 shrink-0">
+                      {persona.name.charAt(0)}
                     </div>
-                    <div className="text-center sm:text-left">
-                      <h4 className="text-base font-bold text-slate-900">张睿</h4>
-                      <p className="text-xs text-slate-500 mt-0.5">资深 UX 设计师</p>
-                      <div className="mt-3 flex flex-wrap gap-1.5 justify-center sm:justify-start">
-                        <span className="text-[10px] font-medium px-2 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200">效率驱动</span>
-                        <span className="text-[10px] font-medium px-2 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200">工具重度用户</span>
+                    <div className="text-center sm:text-left pt-1 flex-1">
+                      <h4 className="text-lg font-bold text-slate-900">{persona.name}</h4>
+                      <div className="inline-block mt-2 px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200 shadow-sm">
+                        {persona.role}
                       </div>
                     </div>
                   </div>
-                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                      <div className="flex items-center gap-1.5 mb-2 text-slate-700 font-semibold text-xs uppercase tracking-wider">
-                        <Bot className="text-blue-500" size={14} /> 核心动力
-                      </div>
-                      <ul className="space-y-1.5">
-                        <li className="flex items-start gap-1.5 text-xs text-slate-600 leading-relaxed">
-                          <span className="text-blue-500 mt-0.5">•</span> 提升研究素材整理效率
-                        </li>
-                        <li className="flex items-start gap-1.5 text-xs text-slate-600 leading-relaxed">
-                          <span className="text-blue-500 mt-0.5">•</span> 保持洞察与原始语境的关联
-                        </li>
-                      </ul>
-                    </div>
-                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                      <div className="flex items-center gap-1.5 mb-2 text-slate-700 font-semibold text-xs uppercase tracking-wider">
-                        <Lightbulb className="text-amber-500" size={14} /> 心理预期
-                      </div>
-                      <ul className="space-y-1.5">
-                        <li className="flex items-start gap-1.5 text-xs text-slate-600 leading-relaxed">
-                          <span className="text-amber-500 mt-0.5">•</span> 自动化标签与信息提取
-                        </li>
-                        <li className="flex items-start gap-1.5 text-xs text-slate-600 leading-relaxed">
-                          <span className="text-amber-500 mt-0.5">•</span> 减少无意义的"搬运"工作
-                        </li>
-                      </ul>
-                    </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-slate-400 text-sm gap-2">
+                    <Bot className="text-slate-300 opacity-50" size={32} />
+                    等待提交原始数据，AI 将自动归纳用户画像...
                   </div>
-                </div>
+                )}
               </div>
             </section>
 
@@ -220,32 +236,31 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
               </div>
 
               <div className="flex flex-col gap-4">
-                {insights.map((insight, index) => (
+                {insights && insights.length > 0 ? insights.map((insight, index) => (
                   <div key={insight.id || index} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden group hover:border-purple-300 transition-colors">
                     <div className="p-4 border-b border-slate-100 flex justify-between items-start">
                       <div className="flex gap-3">
-                        <div className="mt-0.5">
-                          <span className={`flex items-center justify-center px-1.5 py-0.5 rounded ${insight.severity === 'red' ? 'bg-red-50 text-red-700 border-red-200' : insight.severity === 'yellow' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-green-50 text-green-700 border-green-200'} font-bold text-[10px] border`}>
-                            {insight.type}
+                        <div className="mt-0.5 shrink-0">
+                          <span className={`flex items-center justify-center px-2 py-0.5 rounded-md ${insight.severity === 'red' ? 'bg-red-50 text-red-700 border-red-200' : insight.severity === 'yellow' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-green-50 text-green-700 border-green-200'} font-bold text-xs border whitespace-nowrap`}>
+                            {insight.type || 'Insight'}
                           </span>
                         </div>
                         <div>
-                          <h4 className="text-sm font-bold text-slate-900">{insight.title}</h4>
-                          <div className="flex gap-2 mt-1">
-                            {insight.tags?.map((tag: string, i: number) => (
-                              <span key={i} className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{tag}</span>
-                            ))}
-                          </div>
+                          <h4 className="text-[15px] font-bold text-slate-900 leading-snug">{insight.title}</h4>
+                          {insight.tags && insight.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {insight.tags.map((tag: string, i: number) => (
+                                <span key={i} className="text-[11px] font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors px-1.5 py-0.5 rounded border border-slate-200/60 leading-none"># {tag}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <button className="text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <MoreHorizontal size={18} />
-                      </button>
                     </div>
                     {insight.quote && (
-                      <div className="p-4 bg-slate-50/50 space-y-3">
-                        <div className="flex gap-2 items-start">
-                          <Quote className="text-slate-300 shrink-0 mt-0.5" size={16} />
+                      <div className="p-4 bg-amber-50/20">
+                        <div className="flex gap-2.5 items-start">
+                          <Quote className="text-amber-300 shrink-0 mt-0.5 fill-amber-300/20" size={16} />
                           <p className="text-sm text-slate-600 italic leading-relaxed">
                             "{insight.quote}"
                           </p>
@@ -253,7 +268,15 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
                       </div>
                     )}
                   </div>
-                ))}
+                )) : (
+                  <div className="bg-white rounded-xl border border-dashed border-slate-300 p-8 flex flex-col items-center justify-center text-center">
+                    <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+                      <Lightbulb size={24} className="text-slate-300" />
+                    </div>
+                    <p className="text-sm font-medium text-slate-500 mb-1">暂无提炼的洞察数据</p>
+                    <p className="text-xs text-slate-400">目前没有分析数据，请开始洞察之旅</p>
+                  </div>
+                )}
 
               </div>
             </section>
