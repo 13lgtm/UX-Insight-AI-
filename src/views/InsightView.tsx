@@ -204,24 +204,26 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
                 </h3>
               </div>
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:border-blue-200 transition-colors">
-                {persona ? (
-                  <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
-                    <div className="w-16 h-16 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-2xl overflow-hidden shadow-inner border border-blue-100 shrink-0">
-                      {persona?.name?.charAt(0) || '?'}
-                    </div>
-                    <div className="text-center sm:text-left pt-1 flex-1">
-                      <h4 className="text-lg font-bold text-slate-900">{persona?.name || '未知用户'}</h4>
-                      <div className="inline-block mt-2 px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200 shadow-sm">
-                        {persona?.role || '访谈对象'}
+                <div key={persona ? 'persona-content' : 'persona-empty'} className="transition-all duration-300">
+                  {persona ? (
+                    <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
+                      <div className="w-16 h-16 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-2xl overflow-hidden shadow-inner border border-blue-100 shrink-0">
+                        {persona?.name?.charAt(0) || '?'}
+                      </div>
+                      <div className="text-center sm:text-left pt-1 flex-1">
+                        <h4 className="text-lg font-bold text-slate-900">{persona?.name || '未知用户'}</h4>
+                        <div className="inline-block mt-2 px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200 shadow-sm">
+                          {persona?.role || '访谈对象'}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-8 text-slate-400 text-sm gap-2">
-                    <Bot className="text-slate-300 opacity-50" size={32} />
-                    等待提交原始数据，AI 将自动归纳用户画像...
-                  </div>
-                )}
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-slate-400 text-sm gap-2">
+                      <Bot className="text-slate-300 opacity-50" size={32} />
+                      <span>等待提交原始数据，AI 将自动归纳用户画像...</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </section>
 
@@ -236,48 +238,53 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
               </div>
 
               <div className="flex flex-col gap-4">
-                {insights && insights.length > 0 ? insights.map((insight, index) => (
-                  <div key={insight?.id || index} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden group hover:border-purple-300 transition-colors">
-                    <div className="p-4 border-b border-slate-100 flex justify-between items-start">
-                      <div className="flex gap-3">
-                        <div className="mt-0.5 shrink-0">
-                          <span className={`flex items-center justify-center px-2 py-0.5 rounded-md ${insight?.severity === 'red' ? 'bg-red-50 text-red-700 border-red-200' : insight?.severity === 'yellow' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-green-50 text-green-700 border-green-200'} font-bold text-xs border whitespace-nowrap`}>
-                            {insight?.type || 'Insight'}
-                          </span>
-                        </div>
-                        <div>
-                          <h4 className="text-[15px] font-bold text-slate-900 leading-snug">{insight?.title || '未命名'}</h4>
-                          {insight?.tags && insight.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mt-2">
-                              {insight.tags.map((tag: string, i: number) => (
-                                <span key={i} className="text-[11px] font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors px-1.5 py-0.5 rounded border border-slate-200/60 leading-none"># {tag}</span>
-                              ))}
+                <div key={insights && insights.length > 0 ? 'insights-list' : 'insights-empty'} className="transition-all duration-300 w-full">
+                  {insights && insights.length > 0 ? (
+                    <div className="flex flex-col gap-4">
+                      {insights.map((insight, index) => (
+                        <div key={insight?.id || index} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden group hover:border-purple-300 transition-colors">
+                          <div className="p-4 border-b border-slate-100 flex justify-between items-start">
+                            <div className="flex gap-3">
+                              <div className="mt-0.5 shrink-0">
+                                <span className={`flex items-center justify-center px-2 py-0.5 rounded-md ${insight?.severity === 'red' ? 'bg-red-50 text-red-700 border-red-200' : insight?.severity === 'yellow' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-green-50 text-green-700 border-green-200'} font-bold text-xs border whitespace-nowrap`}>
+                                  {insight?.type || 'Insight'}
+                                </span>
+                              </div>
+                              <div>
+                                <h4 className="text-[15px] font-bold text-slate-900 leading-snug">{insight?.title || '未命名'}</h4>
+                                {insight?.tags && insight.tags.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5 mt-2">
+                                    {insight.tags.map((tag: string, i: number) => (
+                                      <span key={i} className="text-[11px] font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors px-1.5 py-0.5 rounded border border-slate-200/60 leading-none"># {tag}</span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {insight?.quote && (
+                            <div className="p-4 bg-amber-50/20">
+                              <div className="flex gap-2.5 items-start">
+                                <Quote className="text-amber-300 shrink-0 mt-0.5 fill-amber-300/20" size={16} />
+                                <p className="text-sm text-slate-600 italic leading-relaxed">
+                                  "{insight.quote}"
+                                </p>
+                              </div>
                             </div>
                           )}
                         </div>
-                      </div>
+                      ))}
                     </div>
-                    {insight?.quote && (
-                      <div className="p-4 bg-amber-50/20">
-                        <div className="flex gap-2.5 items-start">
-                          <Quote className="text-amber-300 shrink-0 mt-0.5 fill-amber-300/20" size={16} />
-                          <p className="text-sm text-slate-600 italic leading-relaxed">
-                            "{insight.quote}"
-                          </p>
-                        </div>
+                  ) : (
+                    <div className="bg-white rounded-xl border border-dashed border-slate-300 p-8 flex flex-col items-center justify-center text-center">
+                      <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+                        <Lightbulb size={24} className="text-slate-300" />
                       </div>
-                    )}
-                  </div>
-                )) : (
-                  <div className="bg-white rounded-xl border border-dashed border-slate-300 p-8 flex flex-col items-center justify-center text-center">
-                    <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
-                      <Lightbulb size={24} className="text-slate-300" />
+                      <p className="text-sm font-medium text-slate-500 mb-1">暂无提炼的洞察数据</p>
+                      <p className="text-xs text-slate-400">目前没有分析数据，请开始洞察之旅</p>
                     </div>
-                    <p className="text-sm font-medium text-slate-500 mb-1">暂无提炼的洞察数据</p>
-                    <p className="text-xs text-slate-400">目前没有分析数据，请开始洞察之旅</p>
-                  </div>
-                )}
-
+                  )}
+                </div>
               </div>
             </section>
           </div>
