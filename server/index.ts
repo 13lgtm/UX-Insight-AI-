@@ -112,7 +112,11 @@ app.get('/api/projects/:id/transcripts', async (req, res) => {
     }
 });
 
-// Start the server
-app.listen(port, () => {
-    console.log(`Server listening at http://localhost:${port}`);
-});
+// Start the server (only locally, Vercel will handle standard exports)
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => {
+        console.log(`Server listening at http://localhost:${port}`);
+    });
+}
+
+export default app;
