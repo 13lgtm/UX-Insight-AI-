@@ -153,18 +153,18 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
             <button
               onClick={handleAnalyze}
               disabled={isAnalyzing || !rawText.trim()}
-              className="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-md shadow-blue-600/20 transition-all flex items-center justify-center gap-2 text-[15px] active:scale-[0.99]"
+              className="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-md shadow-blue-600/20 transition-all text-[15px] active:scale-[0.99]"
             >
               {isAnalyzing ? (
-                <>
+                <div className="flex items-center justify-center gap-2 pointer-events-none">
                   <Loader2 className="animate-spin" size={20} />
-                  核心大脑深度分析中 (这可能需要几秒钟)...
-                </>
+                  <span>核心大脑深度分析中 (这可能需要几秒钟)...</span>
+                </div>
               ) : (
-                <>
+                <div className="flex items-center justify-center gap-2 pointer-events-none">
                   <Bot size={20} />
-                  提交并开始洞察
-                </>
+                  <span>提交并开始洞察</span>
+                </div>
               )}
             </button>
           </div>
@@ -207,12 +207,12 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
                 {persona ? (
                   <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
                     <div className="w-16 h-16 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-2xl overflow-hidden shadow-inner border border-blue-100 shrink-0">
-                      {persona.name.charAt(0)}
+                      {persona?.name?.charAt(0) || '?'}
                     </div>
                     <div className="text-center sm:text-left pt-1 flex-1">
-                      <h4 className="text-lg font-bold text-slate-900">{persona.name}</h4>
+                      <h4 className="text-lg font-bold text-slate-900">{persona?.name || '未知用户'}</h4>
                       <div className="inline-block mt-2 px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200 shadow-sm">
-                        {persona.role}
+                        {persona?.role || '访谈对象'}
                       </div>
                     </div>
                   </div>
@@ -237,17 +237,17 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
 
               <div className="flex flex-col gap-4">
                 {insights && insights.length > 0 ? insights.map((insight, index) => (
-                  <div key={insight.id || index} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden group hover:border-purple-300 transition-colors">
+                  <div key={insight?.id || index} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden group hover:border-purple-300 transition-colors">
                     <div className="p-4 border-b border-slate-100 flex justify-between items-start">
                       <div className="flex gap-3">
                         <div className="mt-0.5 shrink-0">
-                          <span className={`flex items-center justify-center px-2 py-0.5 rounded-md ${insight.severity === 'red' ? 'bg-red-50 text-red-700 border-red-200' : insight.severity === 'yellow' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-green-50 text-green-700 border-green-200'} font-bold text-xs border whitespace-nowrap`}>
-                            {insight.type || 'Insight'}
+                          <span className={`flex items-center justify-center px-2 py-0.5 rounded-md ${insight?.severity === 'red' ? 'bg-red-50 text-red-700 border-red-200' : insight?.severity === 'yellow' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-green-50 text-green-700 border-green-200'} font-bold text-xs border whitespace-nowrap`}>
+                            {insight?.type || 'Insight'}
                           </span>
                         </div>
                         <div>
-                          <h4 className="text-[15px] font-bold text-slate-900 leading-snug">{insight.title}</h4>
-                          {insight.tags && insight.tags.length > 0 && (
+                          <h4 className="text-[15px] font-bold text-slate-900 leading-snug">{insight?.title || '未命名'}</h4>
+                          {insight?.tags && insight.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1.5 mt-2">
                               {insight.tags.map((tag: string, i: number) => (
                                 <span key={i} className="text-[11px] font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors px-1.5 py-0.5 rounded border border-slate-200/60 leading-none"># {tag}</span>
@@ -257,7 +257,7 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
                         </div>
                       </div>
                     </div>
-                    {insight.quote && (
+                    {insight?.quote && (
                       <div className="p-4 bg-amber-50/20">
                         <div className="flex gap-2.5 items-start">
                           <Quote className="text-amber-300 shrink-0 mt-0.5 fill-amber-300/20" size={16} />
