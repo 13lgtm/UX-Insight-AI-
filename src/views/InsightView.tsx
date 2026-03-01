@@ -16,6 +16,8 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [persona, setPersona] = useState<{ name: string, role: string } | null>(null);
+  const [isReadMode, setIsReadMode] = useState(false);
+  const [activeQuote, setActiveQuote] = useState<string | null>(null);
 
   const handleAnalyze = async () => {
     if (!rawText.trim()) {
@@ -56,6 +58,7 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
         if (result.data.persona) {
           setPersona(result.data.persona);
         }
+        setIsReadMode(true);
       } else {
         throw new Error('解析结构体失败或格式异常');
       }
@@ -65,6 +68,39 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleClear = () => {
+    setIsReadMode(false);
+    setRawText('');
+    setInsights([]);
+    setPersona(null);
+    setActiveQuote(null);
+  };
+
+  const highlightText = (text: string, quoteToHighlight: string | null) => {
+    if (!quoteToHighlight || quoteToHighlight.trim() === '') return <>{text}</>;
+
+    // Simple exact match highlighting
+    const parts = text.split(quoteToHighlight);
+
+    // If not found exactly, just return the text
+    if (parts.length === 1) return <>{text}</>;
+
+    return (
+      <>
+        {parts.map((part, index) => (
+          <React.Fragment key={index}>
+            {part}
+            {index !== parts.length - 1 && (
+              <mark className="bg-yellow-200 text-slate-900 rounded-sm px-0.5 py-0.5 shadow-sm transition-all duration-300 font-medium">
+                {quoteToHighlight}
+              </mark>
+            )}
+          </React.Fragment>
+        ))}
+      </>
+    );
   };
 
   useEffect(() => {
@@ -122,10 +158,19 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-md border border-green-200">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-              解析完成: 100%
-            </span>
+            {isReadMode ? (
+              <button
+                onClick={handleClear}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 font-medium text-xs rounded-lg hover:bg-slate-200 transition-colors"
+              >
+                重新分析新数据
+              </button>
+            ) : (
+              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-md border border-green-200">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                准备就绪
+              </span>
+            )}
             <button className="p-1.5 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100 transition-colors">
               <MoreHorizontal size={18} />
             </button>
@@ -136,38 +181,52 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-slate-50/50">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-1.5 h-4 bg-blue-500 rounded-full"></div>
-            <label className="text-sm font-bold text-slate-800">原始数据输入区</label>
+            <label className="text-sm font-bold text-slate-800">
+              {isReadMode ? "原始数据 (阅读模式) - 点击右侧痛点实现溯源" : "原始数据输入区"}
+            </label>
           </div>
-          <p className="text-[13px] text-slate-500 mb-1 leading-relaxed">
-            将单次访谈、工单记录或用户反馈直接粘贴在此处。UX-Insight AI 分析核心将依据大模型能力（DeepSeek），自动提取结构化洞察并保存至 Supabase 数据库。
-          </p>
-          <textarea
-            className="flex-1 w-full p-4 rounded-xl border border-slate-200 shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none transition-all text-slate-700 leading-relaxed min-h-[400px]"
-            placeholder="示例：&#10;您好，张睿，感谢今天参加。作为一名资深 UX 设计师，你认为目前使用的研究工具中最大的痛点是什么？&#10;&#10;说实话，最让我头疼的是整理素材的效率。每次访谈结束后，面对几个小时的视频素材，我经常感到无从下手..."
-            value={rawText}
-            onChange={(e) => setRawText(e.target.value)}
-            disabled={isAnalyzing}
-          ></textarea>
 
-          <div className="pt-2">
-            <button
-              onClick={handleAnalyze}
-              disabled={isAnalyzing || !rawText.trim()}
-              className="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-md shadow-blue-600/20 transition-all text-[15px] active:scale-[0.99]"
-            >
-              {isAnalyzing ? (
-                <div className="flex items-center justify-center gap-2 pointer-events-none">
-                  <Loader2 className="animate-spin" size={20} />
-                  <span>核心大脑深度分析中 (这可能需要几秒钟)...</span>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center gap-2 pointer-events-none">
-                  <Bot size={20} />
-                  <span>提交并开始洞察</span>
-                </div>
-              )}
-            </button>
-          </div>
+          {!isReadMode && (
+            <p className="text-[13px] text-slate-500 mb-1 leading-relaxed">
+              将单次访谈、工单记录或用户反馈直接粘贴在此处。UX-Insight AI 分析核心将依据大模型能力（DeepSeek），自动提取结构化洞察并保存至 Supabase 数据库。
+            </p>
+          )}
+
+          {isReadMode ? (
+            <div className="flex-1 w-full bg-white p-6 rounded-xl border border-slate-200 shadow-sm overflow-y-auto text-slate-700 leading-relaxed text-[15px] whitespace-pre-wrap">
+              {highlightText(rawText, activeQuote)}
+            </div>
+          ) : (
+            <textarea
+              className="flex-1 w-full p-4 rounded-xl border border-slate-200 shadow-inner focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none transition-all text-slate-700 leading-relaxed min-h-[400px]"
+              placeholder="示例：&#10;您好，张睿，感谢今天参加。作为一名资深 UX 设计师，你认为目前使用的研究工具中最大的痛点是什么？&#10;&#10;说实话，最让我头疼的是整理素材的效率。每次访谈结束后，面对几个小时的视频素材，我经常感到无从下手..."
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              disabled={isAnalyzing}
+            ></textarea>
+          )}
+
+          {!isReadMode && (
+            <div className="pt-2">
+              <button
+                onClick={handleAnalyze}
+                disabled={isAnalyzing || !rawText.trim()}
+                className="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-md shadow-blue-600/20 transition-all text-[15px] active:scale-[0.99]"
+              >
+                {isAnalyzing ? (
+                  <div className="flex items-center justify-center gap-2 pointer-events-none">
+                    <Loader2 className="animate-spin" size={20} />
+                    <span>核心大脑深度分析中 (这可能需要几秒钟)...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2 pointer-events-none">
+                    <Bot size={20} />
+                    <span>提交并开始洞察</span>
+                  </div>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -242,7 +301,11 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
                   {insights && insights.length > 0 ? (
                     <div className="flex flex-col gap-4">
                       {insights.map((insight, index) => (
-                        <div key={insight?.id || index} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden group hover:border-purple-300 transition-colors">
+                        <div
+                          key={insight?.id || index}
+                          onClick={() => setActiveQuote(insight?.quote || null)}
+                          className={`bg-white rounded-xl border shadow-sm overflow-hidden group transition-all cursor-pointer hover:shadow-md ${activeQuote === insight?.quote ? 'border-purple-500 ring-2 ring-purple-100 ring-offset-1' : 'border-slate-200 hover:border-purple-300'}`}
+                        >
                           <div className="p-4 border-b border-slate-100 flex justify-between items-start">
                             <div className="flex gap-3">
                               <div className="mt-0.5 shrink-0">
