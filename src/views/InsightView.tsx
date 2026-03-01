@@ -93,7 +93,10 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
           <React.Fragment key={index}>
             {part}
             {index !== parts.length - 1 && (
-              <mark className="bg-yellow-200 text-slate-900 rounded-sm px-0.5 py-0.5 shadow-sm transition-all duration-300 font-medium">
+              <mark
+                id="highlighted-quote"
+                className="bg-yellow-200 text-slate-900 rounded-sm px-0.5 py-0.5 shadow-sm transition-all duration-300 font-medium"
+              >
                 {quoteToHighlight}
               </mark>
             )}
@@ -102,6 +105,18 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
       </>
     );
   };
+
+  useEffect(() => {
+    // Scroll into view logic for the highlighted text
+    if (activeQuote && isReadMode) {
+      setTimeout(() => {
+        const el = document.getElementById('highlighted-quote');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 50); // slight delay to allow DOM to render
+    }
+  }, [activeQuote, isReadMode]);
 
   useEffect(() => {
     // Fetch insights and transcripts concurrently

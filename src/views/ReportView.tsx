@@ -1,11 +1,78 @@
-import React from 'react';
-import { Download, Share2, ChevronRight, Users, AlertTriangle, Lightbulb, TrendingUp, BarChart as BarChartIcon, ChevronDown, PersonStanding, Quote, Ban, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Download, Share2, ChevronRight, Users, AlertTriangle, Lightbulb, TrendingUp, BarChart as BarChartIcon, ChevronDown, PersonStanding, Quote, Ban, Sparkles, Loader2 } from 'lucide-react';
 
 interface ReportViewProps {
   onNavigate: (view: string) => void;
+  projectId?: number;
 }
 
-export default function ReportView({ onNavigate }: ReportViewProps) {
+export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProps) {
+  const [insights, setInsights] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/insights`)
+      .then(res => res.json())
+      .then(data => {
+        setInsights(data || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch insights for report:', err);
+        setLoading(false);
+      });
+  }, [projectId]);
+
+  // Aggregate tags for the distribution chart
+  const tagStats = useMemo(() => {
+    const counts: Record<string, number> = {};
+    let totalTags = 0;
+    insights.forEach(insight => {
+      if (insight.tags && Array.isArray(insight.tags)) {
+        insight.tags.forEach((tag: string) => {
+          counts[tag] = (counts[tag] || 0) + 1;
+          totalTags++;
+        });
+      }
+    });
+
+    // Sort tags by frequency descending
+    return Object.entries(counts)
+      .map(([name, count]) => ({
+        name,
+        count,
+        percentage: totalTags > 0 ? Math.round((count / insights.length) * 100) : 0 // relative to total insights
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4); // Top 4 tags
+  }, [insights]);
+
+  // Extract primary persona from insights
+  const aggregatedPersona = useMemo(() => {
+    if (insights.length === 0) return { name: '未知用户', role: '暂无访谈数据', quote: '目前没有足够的痛点数据进行归纳。' };
+    const validInsights = insights.filter(i => i.personaName && i.personaName !== 'Unknown');
+    if (validInsights.length === 0) return { name: '受访者集合', role: '多角色调研', quote: '用户在核心流程中表达了对效率和体验的关注。' };
+
+    // Use the latest/first valid persona for MVP
+    const p = validInsights[validInsights.length - 1];
+    return {
+      name: p.personaName,
+      role: p.personaRole,
+      quote: p.quote || '效率和体验依然是用户最关心的核心命题。'
+    };
+  }, [insights]);
+
+  const topPainPoint = tagStats.length > 0 ? tagStats[0] : null;
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex h-full w-full items-center justify-center bg-slate-50 text-slate-500 gap-2">
+        <Loader2 className="animate-spin" size={20} />
+        生成全局报告中...
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -57,8 +124,8 @@ export default function ReportView({ onNavigate }: ReportViewProps) {
                   </div>
                   <span className="absolute bottom-0 right-0 bg-green-500 w-6 h-6 rounded-full border-4 border-white" title="高置信度匹配"></span>
                 </div>
-                <h2 className="text-xl font-bold text-slate-900">“效率追求者”</h2>
-                <p className="text-sm text-slate-500 mt-1">基于 12 场访谈的综合画像</p>
+                <h2 className="text-xl font-bold text-slate-900">{aggregatedPersona.name}</h2>
+                <p className="text-sm text-slate-500 mt-1">{aggregatedPersona.role}</p>
                 <div className="mt-6 w-full space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-500">平均经验</span>
@@ -100,7 +167,7 @@ export default function ReportView({ onNavigate }: ReportViewProps) {
                 <div className="md:col-span-2 relative pl-10 pr-4 py-3 bg-blue-50/50 rounded-lg border border-blue-100">
                   <Quote className="absolute left-3 top-3 text-blue-200" size={24} />
                   <p className="text-sm italic text-slate-700">
-                    "在 85% 的访谈中，参与者表达了强烈的愿望，希望通过自动化取代手动数据录入，并将其列为每周报告周期的主要瓶颈。"
+                    "{aggregatedPersona.quote}"
                   </p>
                 </div>
               </div>
@@ -120,59 +187,58 @@ export default function ReportView({ onNavigate }: ReportViewProps) {
             <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
               <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-6">按类别频率分布</h4>
               <div className="space-y-6">
-                <div className="group cursor-pointer">
-                  <div className="flex justify-between items-end mb-1">
-                    <span className="text-sm font-medium text-slate-700">手动录入数据</span>
-                    <span className="text-xs font-semibold text-slate-500">10 次提及 (83%)</span>
+                {tagStats.length > 0 ? tagStats.map((stat, i) => {
+                  const colors = [
+                    { bg: 'bg-red-500', track: 'bg-slate-100' },
+                    { bg: 'bg-orange-500', track: 'bg-slate-100' },
+                    { bg: 'bg-amber-400', track: 'bg-slate-100' },
+                    { bg: 'bg-slate-400', track: 'bg-slate-100' },
+                  ];
+                  const color = colors[i % colors.length];
+
+                  return (
+                    <div key={stat.name} className="group cursor-pointer transition-all hover:opacity-90">
+                      <div className="flex justify-between items-end mb-1">
+                        <span className="text-sm font-medium text-slate-700">{stat.name}</span>
+                        <span className="text-xs font-semibold text-slate-500">{stat.count} 次提及 ({stat.percentage}%)</span>
+                      </div>
+                      <div className={`w-full ${color.track} rounded-full h-4 overflow-hidden relative`}>
+                        <div className={`${color.bg} h-full rounded-full transition-all duration-1000 ease-out`} style={{ width: `${stat.percentage}%` }}></div>
+                        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      </div>
+                    </div>
+                  );
+                }) : (
+                  <div className="text-sm text-slate-400 py-8 text-center flex flex-col items-center">
+                    <BarChartIcon size={32} className="text-slate-200 mb-2" />
+                    暂无可分析的标签数据
                   </div>
-                  <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden relative">
-                    <div className="bg-red-500 h-full rounded-full" style={{ width: '83%' }}></div>
-                    <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  </div>
-                </div>
-                <div className="group cursor-pointer">
-                  <div className="flex justify-between items-end mb-1">
-                    <span className="text-sm font-medium text-slate-700">性能/速度</span>
-                    <span className="text-xs font-semibold text-slate-500">7 次提及 (58%)</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden">
-                    <div className="bg-orange-500 h-full rounded-full" style={{ width: '58%' }}></div>
-                  </div>
-                </div>
-                <div className="group cursor-pointer">
-                  <div className="flex justify-between items-end mb-1">
-                    <span className="text-sm font-medium text-slate-700">导出选项</span>
-                    <span className="text-xs font-semibold text-slate-500">4 次提及 (33%)</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden">
-                    <div className="bg-amber-400 h-full rounded-full" style={{ width: '33%' }}></div>
-                  </div>
-                </div>
-                <div className="group cursor-pointer">
-                  <div className="flex justify-between items-end mb-1">
-                    <span className="text-sm font-medium text-slate-700">移动端适配</span>
-                    <span className="text-xs font-semibold text-slate-500">2 次提及 (16%)</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden">
-                    <div className="bg-slate-400 h-full rounded-full" style={{ width: '16%' }}></div>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
-            <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl border border-red-100 p-6 flex flex-col justify-center">
+            <div className={`bg-gradient-to-br ${topPainPoint ? 'from-red-50 to-orange-50 border-red-100' : 'from-slate-50 to-slate-100 border-slate-200'} rounded-xl border p-6 flex flex-col justify-center`}>
               <div className="flex items-center gap-2 mb-3">
-                <span className="flex items-center justify-center w-8 h-8 rounded-full bg-red-100 text-red-600">
+                <span className={`flex items-center justify-center w-8 h-8 rounded-full ${topPainPoint ? 'bg-red-100 text-red-600' : 'bg-slate-200 text-slate-500'}`}>
                   <AlertTriangle size={18} />
                 </span>
-                <span className="text-xs font-bold text-red-800 uppercase tracking-wide">高优先级</span>
+                <span className={`text-xs font-bold ${topPainPoint ? 'text-red-800' : 'text-slate-500'} uppercase tracking-wide`}>高优先级痛点</span>
               </div>
-              <h4 className="text-lg font-bold text-slate-900 mb-2">手动录入是关键痛点</h4>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                “手动录入数据”的投诉频率比平均痛点高出 <strong>45%</strong>。这表明需要在 Q3 路线图中立即增加自动化功能。
-              </p>
-              <button className="mt-4 w-full py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">
-                查看相关片段 (10)
-              </button>
+
+              {topPainPoint ? (
+                <>
+                  <h4 className="text-lg font-bold text-slate-900 mb-2">【 {topPainPoint.name} 】是关键瓶颈</h4>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    在本次调研中，“{topPainPoint.name}”的提及率高达 <strong>{topPainPoint.percentage}%</strong>。这是用户最迫切希望优化的核心环节，建议在下一阶段产研规划中优先解决。
+                  </p>
+                  <button className="mt-4 w-full py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">
+                    进一步探索该标签 ( {topPainPoint.count} 条反馈 )
+                  </button>
+                </>
+              ) : (
+                <div className="py-4 text-center">
+                  <p className="text-sm text-slate-500">收集更多洞察以生成优先级建议</p>
+                </div>
+              )}
             </div>
           </div>
         </section>
