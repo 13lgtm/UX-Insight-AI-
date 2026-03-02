@@ -11,9 +11,10 @@ const iconMap: Record<string, React.ElementType> = {
 
 interface ProjectsViewProps {
   onNavigate: (view: string) => void;
+  onSelectProject?: (id: number) => void;
 }
 
-export default function ProjectsView({ onNavigate }: ProjectsViewProps) {
+export default function ProjectsView({ onNavigate, onSelectProject }: ProjectsViewProps) {
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,6 +31,36 @@ export default function ProjectsView({ onNavigate }: ProjectsViewProps) {
       });
   }, []);
 
+  const handleCreateProject = async () => {
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: '新建洞察项目',
+          desc: '暂无描述',
+          icon: 'LayoutDashboard',
+          iconBg: 'bg-slate-50 text-slate-600 border-slate-100',
+          status: '分析中',
+          statusColor: 'bg-blue-100 text-blue-800 border-blue-200 animate-pulse',
+          interviews: '初始状态',
+          date: new Date().toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }),
+          isActive: true
+        })
+      });
+      const newProj = await res.json();
+      if (onSelectProject && newProj.id) {
+        onSelectProject(newProj.id);
+      }
+      onNavigate('insight');
+    } catch (err) {
+      console.error('Failed to create new project:', err);
+      // Fallback local navigation if API fails
+      if (onSelectProject) onSelectProject(Date.now());
+      onNavigate('insight');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="px-8 py-6 pb-2 shrink-0">
@@ -39,7 +70,7 @@ export default function ProjectsView({ onNavigate }: ProjectsViewProps) {
             <p className="text-slate-500 mt-1">管理您的访谈分析与洞察。</p>
           </div>
           <button
-            onClick={() => onNavigate('import')}
+            onClick={handleCreateProject}
             className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm hover:shadow-md transition-all font-medium"
           >
             <Plus size={20} />
@@ -85,7 +116,10 @@ export default function ProjectsView({ onNavigate }: ProjectsViewProps) {
                 <div
                   key={project.id}
                   className={`group bg-white rounded-xl border p-5 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer flex flex-col h-full ${project.isActive ? 'border-blue-200 ring-2 ring-blue-50' : 'border-slate-200'}`}
-                  onClick={() => onNavigate('insight')}
+                  onClick={() => {
+                    if (onSelectProject) onSelectProject(project.id);
+                    onNavigate('insight');
+                  }}
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${project.iconBg}`}>
@@ -111,7 +145,7 @@ export default function ProjectsView({ onNavigate }: ProjectsViewProps) {
           )}
 
           <button
-            onClick={() => onNavigate('import')}
+            onClick={handleCreateProject}
             className="group border-2 border-dashed border-slate-300 rounded-xl p-5 hover:border-blue-600 hover:bg-slate-50 transition-all flex flex-col items-center justify-center text-center h-full min-h-[220px]"
           >
             <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50 transition-colors mb-3">

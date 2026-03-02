@@ -86,7 +86,7 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
               <span className="text-slate-900 font-medium">全局报告</span>
             </div>
             <h1 className="text-2xl font-bold text-slate-900">全局洞察汇总</h1>
-            <p className="text-slate-500 text-sm mt-1">基于 12 场用户访谈汇总 • 最后更新于 2 小时前</p>
+            <div className="text-slate-500 text-sm mt-1">基于 12 场用户访谈汇总 • 最后更新于 2 小时前</div>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-500 mr-2">筛选：</span>
@@ -125,7 +125,7 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
                   <span className="absolute bottom-0 right-0 bg-green-500 w-6 h-6 rounded-full border-4 border-white" title="高置信度匹配"></span>
                 </div>
                 <h2 className="text-xl font-bold text-slate-900">{aggregatedPersona.name}</h2>
-                <p className="text-sm text-slate-500 mt-1">{aggregatedPersona.role}</p>
+                <div className="text-sm text-slate-500 mt-1">{aggregatedPersona.role}</div>
                 <div className="mt-6 w-full space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-500">平均经验</span>
@@ -166,9 +166,9 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
                 </div>
                 <div className="md:col-span-2 relative pl-10 pr-4 py-3 bg-blue-50/50 rounded-lg border border-blue-100">
                   <Quote className="absolute left-3 top-3 text-blue-200" size={24} />
-                  <p className="text-sm italic text-slate-700">
+                  <div className="text-sm italic text-slate-700 whitespace-pre-line">
                     "{aggregatedPersona.quote}"
-                  </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -227,16 +227,16 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
               {topPainPoint ? (
                 <>
                   <h4 className="text-lg font-bold text-slate-900 mb-2">【 {topPainPoint.name} 】是关键瓶颈</h4>
-                  <p className="text-sm text-slate-600 leading-relaxed">
+                  <div className="text-sm text-slate-600 leading-relaxed">
                     在本次调研中，“{topPainPoint.name}”的提及率高达 <strong>{topPainPoint.percentage}%</strong>。这是用户最迫切希望优化的核心环节，建议在下一阶段产研规划中优先解决。
-                  </p>
+                  </div>
                   <button className="mt-4 w-full py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">
                     进一步探索该标签 ( {topPainPoint.count} 条反馈 )
                   </button>
                 </>
               ) : (
                 <div className="py-4 text-center">
-                  <p className="text-sm text-slate-500">收集更多洞察以生成优先级建议</p>
+                  <div className="text-sm text-slate-500">收集更多洞察以生成优先级建议</div>
                 </div>
               )}
             </div>
@@ -256,9 +256,9 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
               <div className="h-1 bg-blue-500 w-full"></div>
               <div className="p-5 flex-1 flex flex-col">
                 <h4 className="font-bold text-slate-900 mb-2">自动化摄取流程</h4>
-                <p className="text-sm text-slate-600 mb-4 flex-1">
+                <div className="text-sm text-slate-600 mb-4 flex-1">
                   在上传流程中直接实施 OCR 和语音转文本，以解决排名第一的痛点。这可以将用户工作流程时间减少约 40%。
-                </p>
+                </div>
                 <div className="flex items-center justify-between pt-4 border-t border-slate-200 mt-auto">
                   <span className="text-xs font-medium text-slate-500">工作量: 高</span>
                   <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">影响力: 高</span>
@@ -269,9 +269,9 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
               <div className="h-1 bg-green-500 w-full"></div>
               <div className="p-5 flex-1 flex flex-col">
                 <h4 className="font-bold text-slate-900 mb-2">统一仪表板视图</h4>
-                <p className="text-sm text-slate-600 mb-4 flex-1">
+                <div className="text-sm text-slate-600 mb-4 flex-1">
                   用户很难看到“大局”。开发一个综合仪表板（如本仪表板），供最终用户可视化他们自己的项目健康状况。
-                </p>
+                </div>
                 <div className="flex items-center justify-between pt-4 border-t border-slate-200 mt-auto">
                   <span className="text-xs font-medium text-slate-500">工作量: 中</span>
                   <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">影响力: 中</span>
@@ -282,9 +282,9 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
               <div className="h-1 bg-purple-500 w-full"></div>
               <div className="p-5 flex-1 flex flex-col">
                 <h4 className="font-bold text-slate-900 mb-2">审查导出格式</h4>
-                <p className="text-sm text-slate-600 mb-4 flex-1">
+                <div className="text-sm text-slate-600 mb-4 flex-1">
                   虽然提及频率较低，但导出问题是“高级用户”的阻碍。添加原始 JSON 和 CSV 导出以满足技术人员细分市场的需求。
-                </p>
+                </div>
                 <div className="flex items-center justify-between pt-4 border-t border-slate-200 mt-auto">
                   <span className="text-xs font-medium text-slate-500">工作量: 低</span>
                   <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded">影响力: 低</span>

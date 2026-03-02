@@ -94,11 +94,16 @@ app.get('/api/projects/:id/insights', async (req, res) => {
         if (error) throw error;
         res.json(data || []);
     } catch (error: any) {
-        console.warn('Fallback to mock insights data.');
-        res.json([
-            { id: 1, project_id: 2, type: 'P0 痛点', severity: 'red', title: '手动标记耗时过长', tags: ['流程效率', '高频提及'], quote: '手动标记耗费了 70% 的时间...', personaName: '张睿', personaRole: '资深 UX 设计师' },
-            { id: 2, project_id: 2, type: 'P1 痛点', severity: 'yellow', title: '跨工具查找语境困难', tags: ['工具割裂', '数据孤岛'], quote: '当我在写报告需要引用某段话时...', personaName: '张睿', personaRole: '资深 UX 设计师' }
-        ]);
+        if (req.params.id === '2' || req.params.id === '1' || req.params.id === '3') {
+            console.warn(`Fallback to mock insights data for project ${req.params.id}.`);
+            res.json([
+                { id: 1, project_id: 2, type: 'P0 痛点', severity: 'red', title: '手动标记耗时过长', tags: ['流程效率', '高频提及'], quote: '手动标记耗费了 70% 的时间...', personaName: '张睿', personaRole: '资深 UX 设计师' },
+                { id: 2, project_id: 2, type: 'P1 痛点', severity: 'yellow', title: '跨工具查找语境困难', tags: ['工具割裂', '数据孤岛'], quote: '当我在写报告需要引用某段话时...', personaName: '张睿', personaRole: '资深 UX 设计师' }
+            ]);
+        } else {
+            console.warn(`Fallback to empty insights data for project ${req.params.id}.`);
+            res.json([]);
+        }
     }
 });
 
@@ -115,11 +120,16 @@ app.get('/api/projects/:id/transcripts', async (req, res) => {
         if (error) throw error;
         res.json(data || []);
     } catch (error: any) {
-        console.warn('Fallback to mock transcripts data.');
-        res.json([
-            { id: 1, project_id: 2, speaker: '访谈员 (你)', timeGroup: '00:14', text: '您好，张睿，感谢今天参加。作为一名资深 UX 设计师，你认为目前使用的研究工具中最大的痛点是什么？' },
-            { id: 2, project_id: 2, speaker: '张睿', timeGroup: '00:22', text: '说实话，最让我头疼的是整理素材的效率。每次访谈结束后，面对几个小时的视频素材，我经常感到无从下手。' }
-        ]);
+        if (req.params.id === '2' || req.params.id === '1' || req.params.id === '3') {
+            console.warn(`Fallback to mock transcripts data for project ${req.params.id}.`);
+            res.json([
+                { id: 1, project_id: 2, speaker: '访谈员 (你)', timeGroup: '00:14', text: '您好，张睿，感谢今天参加。作为一名资深 UX 设计师，你认为目前使用的研究工具中最大的痛点是什么？' },
+                { id: 2, project_id: 2, speaker: '张睿', timeGroup: '00:22', text: '说实话，最让我头疼的是整理素材的效率。每次访谈结束后，面对几个小时的视频素材，我经常感到无从下手。' }
+            ]);
+        } else {
+            console.warn(`Fallback to empty transcripts data for project ${req.params.id}.`);
+            res.json([]);
+        }
     }
 });
 
@@ -183,10 +193,44 @@ JSON 结构必须严格符合以下格式：
 
         let parsedData;
         try {
+            // 首先尝试直接解析 JSON
             parsedData = JSON.parse(replyContent);
         } catch (parseError) {
-            console.error("Failed to parse AI response as JSON:", replyContent);
-            return res.status(500).json({ error: "AI response formatting error" });
+            console.warn("Direct JSON parse failed, trying regex extraction:", replyContent);
+            try {
+                // 尝试提取 Markdown 格式中的 JSON 块
+                const jsonMatch = replyContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+                if (jsonMatch && jsonMatch[1]) {
+                    parsedData = JSON.parse(jsonMatch[1]);
+                } else {
+                    // 尝试提取第一个 { 和最后一个 } 之间的内容
+                    const startIndex = replyContent.indexOf('{');
+                    const endIndex = replyContent.lastIndexOf('}');
+                    if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+                        parsedData = JSON.parse(replyContent.substring(startIndex, endIndex + 1));
+                    } else {
+                        throw new Error("No JSON structure found in AI response");
+                    }
+                }
+            } catch (fallbackError) {
+                console.error("Complex regex extraction also failed. Reverting to Mock fallback.", fallbackError);
+                // 结构解析彻底失败，启用 Mock 前端展示兜底，避免前端接收 undefined 和抛异常
+                parsedData = {
+                    persona: {
+                        name: "未知访谈对象",
+                        role: "未能解析"
+                    },
+                    insights: [
+                        {
+                            type: "解析异常兜底",
+                            severity: "yellow",
+                            title: "AI 返回格式异常，退回演示数据",
+                            tags: ["Error", "Fallback"],
+                            quote: "系统无法将大模型返回的非标准内容转化为结构化数据，请尝试重构原始输入或者检查后台日志。"
+                        }
+                    ]
+                };
+            }
         }
 
         console.log(`AI analysis completed successfully. Extracting ${parsedData.insights?.length || 0} insights.`);

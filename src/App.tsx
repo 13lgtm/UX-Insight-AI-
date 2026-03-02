@@ -18,21 +18,22 @@ import ProfileView from './views/ProfileView';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('home');
+  const [activeProjectId, setActiveProjectId] = useState<number>(2);
 
   if (currentView === 'home') {
     return <HomeView onNavigate={setCurrentView} />;
   }
-  
+
   if (currentView === 'pricing') {
     return <PricingView onNavigate={setCurrentView} />;
   }
 
   return (
     <Layout currentView={currentView} setCurrentView={setCurrentView}>
-      {currentView === 'projects' && <ProjectsView onNavigate={setCurrentView} />}
+      {currentView === 'projects' && <ProjectsView onNavigate={setCurrentView} onSelectProject={setActiveProjectId} />}
       {currentView === 'import' && <ImportView onNavigate={setCurrentView} />}
-      {currentView === 'insight' && <InsightView onNavigate={setCurrentView} />}
-      {currentView === 'report' && <ReportView onNavigate={setCurrentView} />}
+      {currentView === 'insight' && <InsightView onNavigate={setCurrentView} projectId={activeProjectId} />}
+      {currentView === 'report' && <ReportView onNavigate={setCurrentView} projectId={activeProjectId} />}
       {currentView === 'templates' && <TemplatesView onNavigate={setCurrentView} />}
       {currentView === 'training' && <TrainingView />}
       {currentView === 'assets' && <AssetsView />}
