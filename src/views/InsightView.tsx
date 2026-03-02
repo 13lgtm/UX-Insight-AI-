@@ -96,11 +96,12 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
     return (
       <>
         {parts.map((part, index) => (
-          <React.Fragment key={index}>
+          <React.Fragment key={`part-${index}`}>
             {part}
             {index !== parts.length - 1 && (
               <mark
-                id="highlighted-quote"
+                key={`mark-${index}`}
+                id={index === 0 ? "highlighted-quote" : undefined}
                 className="bg-yellow-200 text-slate-900 rounded-sm px-0.5 py-0.5 shadow-sm transition-all duration-300 font-medium"
               >
                 {quoteToHighlight}
