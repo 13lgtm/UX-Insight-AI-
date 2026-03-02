@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Download, Share2, ChevronRight, Users, AlertTriangle, Lightbulb, TrendingUp, BarChart as BarChartIcon, ChevronDown, PersonStanding, Quote, Ban, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -11,7 +11,6 @@ interface ReportViewProps {
 export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProps) {
   const [insights, setInsights] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -69,7 +68,7 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
 
   const topPainPoint = tagStats.length > 0 ? tagStats[0] : null;
 
-  const exportToPDF = async () => {
+  const exportToPDF = useCallback(async () => {
     setIsExporting(true);
     try {
       const element = document.getElementById('report-export-area');
@@ -101,9 +100,9 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
     } finally {
       setIsExporting(false);
     }
-  };
+  }, []);
 
-  const copyFigmaJSON = async () => {
+  const copyFigmaJSON = useCallback(async () => {
     const figmaData = {
       personaName: aggregatedPersona.name,
       tags: tagStats.map(t => t.name),
@@ -122,7 +121,20 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
       setToastMessage(`❌ 复制失败：${err.message || '系统限制或请刷新重试'}`);
       setTimeout(() => setToastMessage(null), 3000);
     }
-  };
+  }, [aggregatedPersona, tagStats]);
+
+  useEffect(() => {
+    const handlePdfExport = () => exportToPDF();
+    const handleFigmaExport = () => copyFigmaJSON();
+
+    window.addEventListener('global-export-pdf', handlePdfExport);
+    window.addEventListener('global-export-figma', handleFigmaExport);
+
+    return () => {
+      window.removeEventListener('global-export-pdf', handlePdfExport);
+      window.removeEventListener('global-export-figma', handleFigmaExport);
+    };
+  }, [exportToPDF, copyFigmaJSON]);
 
   if (loading) {
     return (
@@ -173,40 +185,12 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
               <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
 
-            {/* Export Dropdown */}
-            <div className="relative ml-2">
-              <button
-                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg shadow-sm hover:bg-slate-800 transition-colors text-sm font-medium"
-              >
-                {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                导出
-                <ChevronDown size={14} className={`transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {isExportMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsExportMenuOpen(false)}></div>
-                  <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-50 animate-in fade-in slide-in-from-top-2">
-                    <button
-                      onClick={() => { setIsExportMenuOpen(false); exportToPDF(); }}
-                      className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
-                    >
-                      <span className="text-lg">📄</span>
-                      <span className="font-medium">导出为 PDF <span className="text-slate-400 text-xs font-normal block mt-0.5">单页 Persona 视图</span></span>
-                    </button>
-                    <div className="h-px bg-slate-100 my-1 mx-2"></div>
-                    <button
-                      onClick={() => { setIsExportMenuOpen(false); copyFigmaJSON(); }}
-                      className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
-                    >
-                      <span className="text-lg">🎨</span>
-                      <span className="font-medium">复制为 Figma JSON <span className="text-slate-400 text-xs font-normal block mt-0.5">开发剪贴板友好数据</span></span>
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+            {/* Global Export Loader State (optional display if we want) */}
+            {isExporting && (
+              <span className="ml-2 text-xs font-medium text-blue-600 flex items-center gap-1 bg-blue-50 px-2 py-1 rounded">
+                <Loader2 size={12} className="animate-spin" /> 导出中...
+              </span>
+            )}
           </div>
         </div>
 
