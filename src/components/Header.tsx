@@ -14,7 +14,7 @@ export default function Header({ onNavigate, currentView }: HeaderProps) {
     window.dispatchEvent(new CustomEvent(`global-export-${type}`));
   };
   return (
-    <header className="flex items-center justify-between px-6 py-3 bg-white border-b border-slate-200 shrink-0 h-16 z-20">
+    <header className="relative flex items-center justify-between px-6 py-3 bg-white border-b border-slate-200 shrink-0 h-16 z-50">
       <div className="flex items-center gap-3 cursor-pointer" onClick={() => onNavigate('home')}>
         <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-lg text-blue-600">
           <Sparkles size={20} />
