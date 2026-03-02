@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Download, Share2, ChevronRight, Users, AlertTriangle, Lightbulb, TrendingUp, BarChart as BarChartIcon, ChevronDown, PersonStanding, Quote, Ban, Sparkles, Loader2 } from 'lucide-react';
+import { Download, Share2, ChevronRight, Users, AlertTriangle, Lightbulb, TrendingUp, BarChart as BarChartIcon, ChevronDown, PersonStanding, Quote, Ban, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 interface ReportViewProps {
   onNavigate: (view: string) => void;
@@ -9,6 +11,9 @@ interface ReportViewProps {
 export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProps) {
   const [insights, setInsights] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/insights`)
@@ -64,6 +69,61 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
 
   const topPainPoint = tagStats.length > 0 ? tagStats[0] : null;
 
+  const exportToPDF = async () => {
+    setIsExporting(true);
+    try {
+      const element = document.getElementById('report-export-area');
+      if (!element) return;
+
+      const filters = document.getElementById('report-filters-area');
+      if (filters) filters.style.display = 'none';
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#f8fafc' // slate-50
+      } as any);
+
+      if (filters) filters.style.display = '';
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save('UX-Insight_Persona_Report.pdf');
+    } catch (err: any) {
+      console.error('PDF export failed:', err);
+      setToastMessage(`❌ 导出PDF时发生异常：${err.message || '请刷新重试'}`);
+      setTimeout(() => setToastMessage(null), 3000);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const copyFigmaJSON = async () => {
+    const figmaData = {
+      personaName: aggregatedPersona.name,
+      tags: tagStats.map(t => t.name),
+      stats: { experience: '5-8 年', techSkill: '高' },
+      motives: ['简化重复的日常工作流程', '数据准确性优于速度', '寻求不同工具之间的集成'],
+      frustrations: ['手动数据录入错误导致返工', '缺乏实时协作功能', '新团队成员上手复杂'],
+      quote: aggregatedPersona.quote
+    };
+
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(figmaData, null, 2));
+      setToastMessage('✅ Figma JSON 已复制到剪贴板，可直接在 Figma 插件中粘贴');
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err: any) {
+      console.error('Failed to copy to clipboard', err);
+      setToastMessage(`❌ 复制失败：${err.message || '系统限制或请刷新重试'}`);
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex h-full w-full items-center justify-center bg-slate-50 text-slate-500 gap-2">
@@ -74,8 +134,15 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-8 relative">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-3 z-[100] animate-in fade-in slide-in-from-top-4">
+          <span className="text-sm font-medium">{toastMessage}</span>
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto space-y-8" id="report-export-area">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-sm text-slate-500 mb-1">
@@ -86,11 +153,11 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
               <span className="text-slate-900 font-medium">全局报告</span>
             </div>
             <h1 className="text-2xl font-bold text-slate-900">全局洞察汇总</h1>
-            <div className="text-slate-500 text-sm mt-1">基于 12 场用户访谈汇总 • 最后更新于 2 小时前</div>
+            <div className="text-slate-500 text-sm mt-1">基于 {insights.length || 12} 场用户访谈汇总 • 最后更新于刚刚</div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-500 mr-2">筛选：</span>
-            <div className="relative">
+          <div className="flex items-center gap-2" id="report-filters-area">
+            <span className="text-sm text-slate-500 mr-2 hidden md:inline">筛选：</span>
+            <div className="relative hidden md:block">
               <select className="appearance-none text-sm border border-slate-200 rounded-lg bg-white py-1.5 pl-3 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer">
                 <option>所有角色</option>
                 <option>产品经理</option>
@@ -98,12 +165,47 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
               </select>
               <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             </div>
-            <div className="relative">
+            <div className="relative hidden md:block">
               <select className="appearance-none text-sm border border-slate-200 rounded-lg bg-white py-1.5 pl-3 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer">
                 <option>最近 30 天</option>
                 <option>上个季度</option>
               </select>
               <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+
+            {/* Export Dropdown */}
+            <div className="relative ml-2">
+              <button
+                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg shadow-sm hover:bg-slate-800 transition-colors text-sm font-medium"
+              >
+                {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                导出
+                <ChevronDown size={14} className={`transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isExportMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsExportMenuOpen(false)}></div>
+                  <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-50 animate-in fade-in slide-in-from-top-2">
+                    <button
+                      onClick={() => { setIsExportMenuOpen(false); exportToPDF(); }}
+                      className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
+                    >
+                      <span className="text-lg">📄</span>
+                      <span className="font-medium">导出为 PDF <span className="text-slate-400 text-xs font-normal block mt-0.5">单页 Persona 视图</span></span>
+                    </button>
+                    <div className="h-px bg-slate-100 my-1 mx-2"></div>
+                    <button
+                      onClick={() => { setIsExportMenuOpen(false); copyFigmaJSON(); }}
+                      className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors"
+                    >
+                      <span className="text-lg">🎨</span>
+                      <span className="font-medium">复制为 Figma JSON <span className="text-slate-400 text-xs font-normal block mt-0.5">开发剪贴板友好数据</span></span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -158,7 +158,7 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
           <AlertCircle size={20} className="text-red-500 shrink-0" />
           <div className="flex-1 pr-4">
             <h4 className="font-bold text-sm">分析异常</h4>
-            <p className="text-[13px] mt-0.5 leading-snug">{analysisError}</p>
+            <div className="text-[13px] mt-0.5 leading-snug">{analysisError}</div>
           </div>
           <button onClick={() => setAnalysisError(null)} className="absolute top-3 right-3 text-red-400 hover:text-red-700 transition-colors p-1 rounded-md hover:bg-red-100">×</button>
         </div>
@@ -356,7 +356,7 @@ export default function InsightView({ onNavigate, projectId = 2 }: InsightViewPr
                       <div className="flex flex-col gap-4">
                         {insights.map((insight, index) => (
                           <div
-                            key={insight?.id || index}
+                            key={insight?.id ? `insight-card-${insight.id}` : `insight-idx-${index}`}
                             onClick={() => setActiveQuote(insight?.quote || null)}
                             className={`bg-white rounded-xl border shadow-sm overflow-hidden group transition-all cursor-pointer hover:shadow-md ${activeQuote === insight?.quote ? 'border-purple-500 ring-2 ring-purple-100 ring-offset-1' : 'border-slate-200 hover:border-purple-300'}`}
                           >
