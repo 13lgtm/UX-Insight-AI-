@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Download, Share2, ChevronRight, Users, AlertTriangle, Lightbulb, TrendingUp, BarChart as BarChartIcon, ChevronDown, PersonStanding, Quote, Ban, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import * as htmlToImage from 'html-to-image';
 
 interface ReportViewProps {
   onNavigate: (view: string) => void;
@@ -103,14 +104,17 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
   }, []);
 
   const copyFigmaJSON = useCallback(async () => {
-    const figmaData = {
-      personaName: aggregatedPersona.name,
-      tags: tagStats.map(t => t.name),
-      stats: { experience: '5-8 年', techSkill: '高' },
-      motives: ['简化重复的日常工作流程', '数据准确性优于速度', '寻求不同工具之间的集成'],
-      frustrations: ['手动数据录入错误导致返工', '缺乏实时协作功能', '新团队成员上手复杂'],
-      quote: aggregatedPersona.quote
-    };
+    const figmaData = [
+      {
+        personaName: aggregatedPersona.name,
+        tags: tagStats.map(t => t.name).join(', '),
+        experience: '5-8 年',
+        techSkill: '高',
+        motives: ['简化重复的日常工作流程', '数据准确性优于速度'].map(m => `• ${m}`).join('\n'),
+        frustrations: ['手动数据录入错误导致返工', '缺乏实时协作功能'].map(f => `• ${f}`).join('\n'),
+        quote: aggregatedPersona.quote
+      }
+    ];
 
     try {
       await navigator.clipboard.writeText(JSON.stringify(figmaData, null, 2));
@@ -123,18 +127,50 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
     }
   }, [aggregatedPersona, tagStats]);
 
+  const exportToSVG = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      const element = document.getElementById('report-export-area');
+      if (!element) return;
+
+      const filters = document.getElementById('report-filters-area');
+      if (filters) filters.style.display = 'none';
+
+      const dataUrl = await htmlToImage.toSvg(element, { backgroundColor: '#f8fafc' });
+
+      if (filters) filters.style.display = '';
+
+      // The returned dataUrl is something like data:image/svg+xml;charset=utf-8,...
+      // We need to extract the raw SVG string by decoding the data URL part.
+      const svgText = decodeURIComponent(dataUrl.split(',')[1]);
+
+      await navigator.clipboard.writeText(svgText);
+      setToastMessage('✅ 矢量报告已复制！打开 Figma 直接按 Ctrl+V / Cmd+V 即可粘贴为可编辑图层');
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err: any) {
+      console.error('Failed to copy SVG to clipboard', err);
+      setToastMessage(`❌ 复制失败：${err.message || '系统限制或请刷新重试'}`);
+      setTimeout(() => setToastMessage(null), 3000);
+    } finally {
+      setIsExporting(false);
+    }
+  }, []);
+
   useEffect(() => {
     const handlePdfExport = () => exportToPDF();
     const handleFigmaExport = () => copyFigmaJSON();
+    const handleSvgExport = () => exportToSVG();
 
     window.addEventListener('global-export-pdf', handlePdfExport);
     window.addEventListener('global-export-figma', handleFigmaExport);
+    window.addEventListener('global-export-svg', handleSvgExport);
 
     return () => {
       window.removeEventListener('global-export-pdf', handlePdfExport);
       window.removeEventListener('global-export-figma', handleFigmaExport);
+      window.removeEventListener('global-export-svg', handleSvgExport);
     };
-  }, [exportToPDF, copyFigmaJSON]);
+  }, [exportToPDF, copyFigmaJSON, exportToSVG]);
 
   if (loading) {
     return (
