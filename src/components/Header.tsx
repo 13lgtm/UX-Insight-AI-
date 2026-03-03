@@ -9,7 +9,7 @@ interface HeaderProps {
 export default function Header({ onNavigate, currentView }: HeaderProps) {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
-  const handleExport = (type: 'pdf' | 'figma' | 'svg') => {
+  const handleExport = (type: 'pdf' | 'figma' | 'png') => {
     setIsExportMenuOpen(false);
     window.dispatchEvent(new CustomEvent(`global-export-${type}`));
   };
@@ -62,11 +62,11 @@ export default function Header({ onNavigate, currentView }: HeaderProps) {
                     </button>
                     <div className="h-px bg-slate-100 my-1 mx-2"></div>
                     <button
-                      onClick={() => handleExport('svg')}
+                      onClick={() => handleExport('png')}
                       className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors group"
                     >
-                      <span className="text-lg">✨</span>
-                      <span className="font-medium text-purple-700 group-hover:text-purple-800 transition-colors">复制为 Figma 矢量图 (SVG) <span className="text-purple-400 group-hover:text-purple-500 text-xs font-normal block mt-0.5">原封不动粘贴为可编辑图层</span></span>
+                      <span className="text-lg">🖼️</span>
+                      <span className="font-medium text-purple-700 group-hover:text-purple-800 transition-colors">复制为高清网页截图 (PNG) <span className="text-purple-400 group-hover:text-purple-500 text-xs font-normal block mt-0.5">完美还原视觉表现，可直接粘贴至 Figma</span></span>
                     </button>
                   </div>
                 </>

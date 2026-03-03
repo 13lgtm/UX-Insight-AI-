@@ -127,7 +127,7 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
     }
   }, [aggregatedPersona, tagStats]);
 
-  const exportToSVG = useCallback(async () => {
+  const copyToPNG = useCallback(async () => {
     setIsExporting(true);
     try {
       const element = document.getElementById('report-export-area');
@@ -136,20 +136,22 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
       const filters = document.getElementById('report-filters-area');
       if (filters) filters.style.display = 'none';
 
-      const dataUrl = await htmlToImage.toSvg(element, { backgroundColor: '#f8fafc' });
+      const blob = await htmlToImage.toBlob(element, { backgroundColor: '#f8fafc', pixelRatio: 2 });
 
       if (filters) filters.style.display = '';
 
-      // The returned dataUrl is something like data:image/svg+xml;charset=utf-8,...
-      // We need to extract the raw SVG string by decoding the data URL part.
-      const svgText = decodeURIComponent(dataUrl.split(',')[1]);
-
-      await navigator.clipboard.writeText(svgText);
-      setToastMessage('✅ 矢量报告已复制！打开 Figma 直接按 Ctrl+V / Cmd+V 即可粘贴为可编辑图层');
+      if (blob) {
+        await navigator.clipboard.write([
+          new window.ClipboardItem({ 'image/png': blob })
+        ]);
+        setToastMessage('✅ 高清截图已复制！打开 Figma 直接按 Ctrl+V / Cmd+V 即可粘贴为参考图层');
+      } else {
+        throw new Error('生成图片失败');
+      }
       setTimeout(() => setToastMessage(null), 3000);
     } catch (err: any) {
-      console.error('Failed to copy SVG to clipboard', err);
-      setToastMessage(`❌ 复制失败：${err.message || '系统限制或请刷新重试'}`);
+      console.error('Failed to copy PNG to clipboard', err);
+      setToastMessage(`❌ 复制失败：${err.message || '请确保网站拥有剪贴板权限或刷新重试'}`);
       setTimeout(() => setToastMessage(null), 3000);
     } finally {
       setIsExporting(false);
@@ -159,18 +161,18 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
   useEffect(() => {
     const handlePdfExport = () => exportToPDF();
     const handleFigmaExport = () => copyFigmaJSON();
-    const handleSvgExport = () => exportToSVG();
+    const handlePngExport = () => copyToPNG();
 
     window.addEventListener('global-export-pdf', handlePdfExport);
     window.addEventListener('global-export-figma', handleFigmaExport);
-    window.addEventListener('global-export-svg', handleSvgExport);
+    window.addEventListener('global-export-png', handlePngExport);
 
     return () => {
       window.removeEventListener('global-export-pdf', handlePdfExport);
       window.removeEventListener('global-export-figma', handleFigmaExport);
-      window.removeEventListener('global-export-svg', handleSvgExport);
+      window.removeEventListener('global-export-png', handlePngExport);
     };
-  }, [exportToPDF, copyFigmaJSON, exportToSVG]);
+  }, [exportToPDF, copyFigmaJSON, copyToPNG]);
 
   if (loading) {
     return (
