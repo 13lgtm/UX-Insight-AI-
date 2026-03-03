@@ -127,31 +127,61 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
     }
   }, [aggregatedPersona, tagStats]);
 
-  const copyToPNG = useCallback(async () => {
+  const copyHtmlToDesign = useCallback(async () => {
     setIsExporting(true);
     try {
       const element = document.getElementById('report-export-area');
       if (!element) return;
 
       const filters = document.getElementById('report-filters-area');
+      const originalDisplay = filters ? filters.style.display : '';
       if (filters) filters.style.display = 'none';
 
-      const blob = await htmlToImage.toBlob(element, { backgroundColor: '#f8fafc', pixelRatio: 2 });
+      const clone = element.cloneNode(true) as HTMLElement;
 
-      if (filters) filters.style.display = '';
+      // Fix image URLs to be absolute
+      const images = clone.querySelectorAll('img');
+      images.forEach(img => {
+        if (img.src) {
+          img.src = new URL(img.getAttribute('src') || img.src, window.location.href).href;
+        }
+      });
 
-      if (blob) {
-        await navigator.clipboard.write([
-          new window.ClipboardItem({ 'image/png': blob })
-        ]);
-        setToastMessage('✅ 高清截图已复制！打开 Figma 直接按 Ctrl+V / Cmd+V 即可粘贴为参考图层');
-      } else {
-        throw new Error('生成图片失败');
-      }
-      setTimeout(() => setToastMessage(null), 3000);
+      // Gather head styles to make sure Tailwind classes are applied
+      const headNodes = Array.from(document.head.querySelectorAll('style, link[rel="stylesheet"]'));
+      const stylesHtml = headNodes.map(node => {
+        if (node.tagName.toLowerCase() === 'link') {
+          const cloneLink = node.cloneNode() as HTMLLinkElement;
+          cloneLink.href = new URL(cloneLink.getAttribute('href') || cloneLink.href, window.location.href).href;
+          return cloneLink.outerHTML;
+        }
+        return node.outerHTML;
+      }).join('\n');
+
+      const fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+${stylesHtml}
+<style>
+  body { background: #f8fafc; margin: 0; padding: 40px; font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; }
+  #report-export-area { width: 100%; max-width: 1216px; box-shadow: none !important; border: none !important; }
+</style>
+</head>
+<body class="antialiased text-slate-900 bg-slate-50 min-h-screen">
+  ${clone.outerHTML}
+</body>
+</html>`;
+
+      if (filters) filters.style.display = originalDisplay;
+
+      await navigator.clipboard.writeText(fullHtml);
+      setToastMessage('✅ 源码已提取！请在 Figma 打开 html.to.design 插件，选择 Import via Code 并按 Ctrl+V 粘贴代码');
+
+      setTimeout(() => setToastMessage(null), 6000);
     } catch (err: any) {
-      console.error('Failed to copy PNG to clipboard', err);
-      setToastMessage(`❌ 复制失败：${err.message || '请确保网站拥有剪贴板权限或刷新重试'}`);
+      console.error('Failed to copy HTML: ', err);
+      setToastMessage(`❌ 提取失败：${err.message || '请确保网站拥有剪贴板权限'}`);
       setTimeout(() => setToastMessage(null), 3000);
     } finally {
       setIsExporting(false);
@@ -161,18 +191,18 @@ export default function ReportView({ onNavigate, projectId = 2 }: ReportViewProp
   useEffect(() => {
     const handlePdfExport = () => exportToPDF();
     const handleFigmaExport = () => copyFigmaJSON();
-    const handlePngExport = () => copyToPNG();
+    const handleHtmlExport = () => copyHtmlToDesign();
 
     window.addEventListener('global-export-pdf', handlePdfExport);
     window.addEventListener('global-export-figma', handleFigmaExport);
-    window.addEventListener('global-export-png', handlePngExport);
+    window.addEventListener('global-export-html', handleHtmlExport);
 
     return () => {
       window.removeEventListener('global-export-pdf', handlePdfExport);
       window.removeEventListener('global-export-figma', handleFigmaExport);
-      window.removeEventListener('global-export-png', handlePngExport);
+      window.removeEventListener('global-export-html', handleHtmlExport);
     };
-  }, [exportToPDF, copyFigmaJSON, copyToPNG]);
+  }, [exportToPDF, copyFigmaJSON, copyHtmlToDesign]);
 
   if (loading) {
     return (

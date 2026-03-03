@@ -9,7 +9,7 @@ interface HeaderProps {
 export default function Header({ onNavigate, currentView }: HeaderProps) {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
-  const handleExport = (type: 'pdf' | 'figma' | 'png') => {
+  const handleExport = (type: 'pdf' | 'figma' | 'html') => {
     setIsExportMenuOpen(false);
     window.dispatchEvent(new CustomEvent(`global-export-${type}`));
   };
@@ -62,11 +62,11 @@ export default function Header({ onNavigate, currentView }: HeaderProps) {
                     </button>
                     <div className="h-px bg-slate-100 my-1 mx-2"></div>
                     <button
-                      onClick={() => handleExport('png')}
+                      onClick={() => handleExport('html')}
                       className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-3 transition-colors group"
                     >
-                      <span className="text-lg">🖼️</span>
-                      <span className="font-medium text-purple-700 group-hover:text-purple-800 transition-colors">复制为高清网页截图 (PNG) <span className="text-purple-400 group-hover:text-purple-500 text-xs font-normal block mt-0.5">完美还原视觉表现，可直接粘贴至 Figma</span></span>
+                      <span className="text-lg">⚡️</span>
+                      <span className="font-medium text-emerald-700 group-hover:text-emerald-800 transition-colors">完美转化为 Figma 格式 (推荐) <span className="text-emerald-500 group-hover:text-emerald-600 text-xs font-normal block mt-0.5">支持 html.to.design 插件，100%纯净矢量粘贴</span></span>
                     </button>
                   </div>
                 </>
